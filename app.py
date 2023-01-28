@@ -13,6 +13,12 @@ import numpy as np
 # plotting
 import matplotlib.pyplot as plt
 
+# using joblib models
+import pickle
+
+# import the model to be used
+BAC_base_model = pickle.load(open('BAC_base_model.sav', 'rb'))
+
 # import the bank data
 df = pd.read_pickle('all_banks.pickle')
 
@@ -20,6 +26,11 @@ df = pd.read_pickle('all_banks.pickle')
 bank_data = df.copy()
 bank_data.columns = ['.'.join(c) for c in bank_data.columns]
 bank_data.columns = bank_data.columns.astype('str')
+
+def preprocess(input_data):
+    """Function to preprocess the input data"""
+    pass
+    
 
 
 # set the page title configurations
@@ -89,7 +100,7 @@ else:
     
     bank_option_als = st.sidebar.selectbox(
             label='Select Bank', 
-            options=banks
+            options=banks[:-1]
     )
     
     if technique == 'Forecasting':
@@ -101,20 +112,54 @@ else:
         
     
     else:
+        prediction_img, params = st.columns(2)
         # Sidebar with values that will be used for predicting the closing price
+        
+        prediction_img.image('prediction_img.jpg', caption='Regression prediction')
+        
         open_value = st.sidebar.number_input(
             label='Open Value',
-            step=1
+            step= 0.01,
+            min_value=0.00,
+            format="%.2f"
         )
         high_value = st.sidebar.number_input(
             label='High Value',
-            step=1,
+            step= 0.01,
+            min_value=0.00,
+            format="%.2f"
         )
         low_value = st.sidebar.number_input(
             label='Low Value',
-            step=1,
+            step= 0.01,
+            min_value=0.00,
+            format="%.2f"
         )
         volume_value = st.sidebar.number_input(
             label='Volume Value',
-            step=1,
+            step= 0.01,
+            min_value=0.00,
+            format="%.2f"
         )
+        
+        params_dict = {
+            "Open Value" : round(open_value, 2),
+            "High Value": round(high_value, 2),
+            "Low Value": round(low_value, 2),
+            "Volume Value": round(volume_value, 2),
+        }
+
+        params.write(params_dict)
+        
+        features = [open_value, high_value, low_value, volume_value]
+        
+        result = BAC_base_model.predict([features])
+        
+        if(st.button("Calculate Close Value")):
+            if(result):
+                st.write(f"Predicted Close value: **{round(result[0], 2)}**")  #result[0] because predicted value is an array with one value
+                st.success("Stock Close Value calculated successfully")
+            else:
+                st.error("Something went wrong!")
+        
+        
