@@ -11,13 +11,17 @@ import pandas as pd
 import numpy as np
 
 # plotting
+import matplotlib
 import matplotlib.pyplot as plt
 
-# using joblib models
+# using models
 import pickle
 
+# ARIMA model
+from statsmodels.tsa.arima_model import ARIMA
+
 # import the model to be used
-BAC_base_model = pickle.load(open('BAC_base_model.sav', 'rb'))
+BAC_base_model = pickle.load(open('models/BAC_base_model.sav', 'rb'))
 
 # import the bank data
 df = pd.read_pickle('all_banks.pickle')
@@ -79,20 +83,18 @@ if page_option == 'Visualizations':
             print(bank_data.columns.values.tolist())
 
             st.line_chart(bank_data[[i
-                                     for i in bank_data.columns.values.tolist()
-                                     if stock_info_option in i]
-                                    ])
+                                    for i in bank_data.columns.values.tolist()
+                                    if stock_info_option in i
+                                    ]])
 
         else:
             for option in stock_info_options:
                 st.line_chart(bank_data[[i
-                                     for i in bank_data.columns.values.tolist()
-                                     if option in i]
-                                        ])
+                                    for i in bank_data.columns.values.tolist()
+                                    if option in i
+                                    ]])
 
 else:
-    st.write('Analysis page')
-    
     technique = st.sidebar.selectbox(
         label='Select a technique', 
         options=['Forecasting', 'Prediction']
@@ -104,13 +106,79 @@ else:
     )
     
     if technique == 'Forecasting':
-        forecast_days = st.sidebar.number_input(
-            label='Number fo days to forecast',
+        
+        # The training percentage to be used to train the model
+        training_data_percentage = st.sidebar.number_input(
+            label='Training data percentage',
             step=1,
-            min_value=1
+            min_value=1,
+            value=90,
+            max_value=100
         )
         
-    
+        # Number of auto-regressive terms
+        p = st.sidebar.number_input(
+            label='P Value',
+            step=1,
+            value=2,
+            min_value=0,
+            max_value=10
+        )
+        
+        # Number of nonseasonal differences needed for stationarity
+        d = st.sidebar.number_input(
+            label='D value',
+            step=1,
+            value=2,
+            min_value=0,
+            max_value=10
+        )
+        
+        # Number of lagged forecast errors in the prediction equation
+        q = st.sidebar.number_input(
+            label='Q Value',
+            step=1,
+            value=1,
+            min_value=0,
+            max_value=10
+        )
+        
+        # Select the close price data for the chosen bank
+        selected_bank = bank_option_als[1]
+        
+        df_close = df[selected_bank]['Close']
+        
+        # Changing the data to become stationary
+        df_log = np.log(df_close)
+        
+        # Get the split percentage
+        split_percentage = training_data_percentage * .01
+        
+        train_data, test_data = df_log[3:int(len(df_log)*split_percentage)], \
+                                df_log[int(len(df_log)*split_percentage):]
+                                
+        model = ARIMA(train_data, order=(p, d, q))   
+        fitted = model.fit()
+        
+        steps = len(df_log) - int(len(df_log)*split_percentage)
+        fc, se, conf = fitted.forecast(steps, alpha=0.05)
+        
+        fc_series = pd.Series(fc, index=test_data.index)
+        lower_series = pd.Series(conf[:, 0], index=test_data.index)
+        upper_series = pd.Series(conf[:, 1], index=test_data.index)
+        
+        # Find the log inverse of the arrays
+        train_data_inv, test_data_inv, fc_series_inv = [np.exp(array) \
+                                            for array in [train_data, test_data, fc_series]]
+        print(train_data[:5])
+        # Create the dataframe of the results
+        df = pd.concat([train_data_inv, test_data_inv, fc_series_inv], axis=1)
+        
+        df.columns = ['Training data', 'Actual Stock Price', 'Predicted Stock Price']
+        
+        # Plot the results dataframe on a line chart
+        st.line_chart(df, use_container_width=True)
+        
     else:
         prediction_img, params = st.columns(2)
         # Sidebar with values that will be used for predicting the closing price
