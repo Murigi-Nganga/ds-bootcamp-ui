@@ -161,7 +161,7 @@ dependencies:
   - ptyprocess=0.7.0
   - pyarrow=8.0.0
   - pycparser=2.21
-  - pydeck=0.7.1
+  - pydeck=0.7.116
   - pygments=2.11.2
   - pympler=0.9
   - pyopenssl=22.0.0

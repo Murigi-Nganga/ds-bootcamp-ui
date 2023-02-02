@@ -21,7 +21,12 @@ import pickle
 from statsmodels.tsa.arima_model import ARIMA
 
 # import the model to be used
-BAC_base_model = pickle.load(open('models/BAC_base_model.sav', 'rb'))
+BAC_model = pickle.load(open('models/BAC_model.sav', 'rb'))
+C_model = pickle.load(open('models/C_model.sav', 'rb'))
+GS_model = pickle.load(open('models/GS_model.sav', 'rb'))
+JPM_model = pickle.load(open('models/JPM_model.sav', 'rb'))
+MS_model = pickle.load(open('models/MS_model.sav', 'rb'))
+WFC_model = pickle.load(open('models/WFC_model.sav', 'rb'))
 
 # import the bank data
 df = pd.read_pickle('all_banks.pickle')
@@ -30,18 +35,13 @@ df = pd.read_pickle('all_banks.pickle')
 bank_data = df.copy()
 bank_data.columns = ['.'.join(c) for c in bank_data.columns]
 bank_data.columns = bank_data.columns.astype('str')
-
-def preprocess(input_data):
-    """Function to preprocess the input data"""
-    pass
     
-
 
 # set the page title configurations
 st.set_page_config(page_title='Stock Market Analysis App',
                    page_icon='🦈')
 
-st.title('Stock Market Analysis Application')
+st.subheader('Stock Market Analysis Application')
 
 st.write('\n')
 
@@ -131,7 +131,7 @@ else:
             step=1,
             value=2,
             min_value=0,
-            max_value=10
+            max_value=2
         )
         
         # Number of lagged forecast errors in the prediction equation
@@ -179,18 +179,14 @@ else:
         # Plot the results dataframe on a line chart
         st.line_chart(df, use_container_width=True)
         
+        st.sidebar.text('\n\n')
+        
     else:
         prediction_img, params = st.columns(2)
         # Sidebar with values that will be used for predicting the closing price
         
         prediction_img.image('prediction_img.jpg', caption='Regression prediction')
         
-        open_value = st.sidebar.number_input(
-            label='Open Value',
-            step= 0.01,
-            min_value=0.00,
-            format="%.2f"
-        )
         high_value = st.sidebar.number_input(
             label='High Value',
             step= 0.01,
@@ -203,31 +199,49 @@ else:
             min_value=0.00,
             format="%.2f"
         )
-        volume_value = st.sidebar.number_input(
-            label='Volume Value',
+        open_value = st.sidebar.number_input(
+            label='Open Value',
             step= 0.01,
             min_value=0.00,
             format="%.2f"
         )
         
+        
+        st.sidebar.text('\n\n')
+        
         params_dict = {
-            "Open Value" : round(open_value, 2),
             "High Value": round(high_value, 2),
             "Low Value": round(low_value, 2),
-            "Volume Value": round(volume_value, 2),
+            "Open Value" : round(open_value, 2),
         }
-
+             
         params.write(params_dict)
         
-        features = [open_value, high_value, low_value, volume_value]
+        features = [high_value, low_value, open_value]
         
-        result = BAC_base_model.predict([features])
+        selected_bank = bank_option_als[1]
         
-        if(st.button("Calculate Close Value")):
-            if(result):
-                st.write(f"Predicted Close value: **{round(result[0], 2)}**")  #result[0] because predicted value is an array with one value
-                st.success("Stock Close Value calculated successfully")
-            else:
-                st.error("Something went wrong!")
+        if selected_bank == 'BAC':
+            result = BAC_model.predict([features])
+        elif selected_bank == 'C':
+            result = C_model.predict([features])
+        elif selected_bank == 'GS':
+            result = GS_model.predict([features])
+        elif selected_bank == 'JPM':
+            result = JPM_model.predict([features])
+        elif selected_bank == 'MS':
+            result = GS_model.predict([features])
+        elif selected_bank == 'WFC':
+            result = WFC_model.predict([features])
+        
+        if low_value > high_value:
+            st.error("Error: Low value must be less that high value")
+        else:
+            if(st.button("Calculate Close Value")):
+                if(result):
+                    st.write(f"Predicted Close value: **{round(result[0], 2)}**")  #result[0] because predicted value is an array with one value
+                    st.success("Stock Close Value calculated successfully")
+                else:
+                    st.error("Something went wrong!")
         
         
